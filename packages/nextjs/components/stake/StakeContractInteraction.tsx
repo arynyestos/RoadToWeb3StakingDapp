@@ -10,6 +10,7 @@ import {
   useScaffoldContractWrite,
 } from "~~/hooks/scaffold-eth";
 import { getTargetNetwork } from "~~/utils/scaffold-eth";
+import { useState } from "react";
 
 export const StakeContractInteraction = ({ address }: { address?: string }) => {
   const { address: connectedAddress } = useAccount();
@@ -17,6 +18,8 @@ export const StakeContractInteraction = ({ address }: { address?: string }) => {
   const { data: ExampleExternalContact } = useDeployedContractInfo("ExampleExternalContract");
   const { balance: stakerContractBalance } = useAccountBalance(StakerContract?.address);
   const { balance: exampleExternalContractBalance } = useAccountBalance(ExampleExternalContact?.address);
+
+  const [customEthValue, setcustomEthValue] = useState<string>('');
 
   const configuredNetwork = getTargetNetwork();
 
@@ -26,11 +29,11 @@ export const StakeContractInteraction = ({ address }: { address?: string }) => {
     functionName: "threshold",
     watch: true,
   });
-  const { data: timeLeft } = useScaffoldContractRead({
-    contractName: "Staker",
-    functionName: "timeLeft",
-    watch: true,
-  });
+  // const { data: timeLeft } = useScaffoldContractRead({
+  //   contractName: "Staker",
+  //   functionName: "timeLeft",
+  //   watch: true,
+  // });
   const { data: myStake } = useScaffoldContractRead({
     contractName: "Staker",
     functionName: "balances",
@@ -42,12 +45,28 @@ export const StakeContractInteraction = ({ address }: { address?: string }) => {
     functionName: "completed",
     watch: true,
   });
+  const { data: rewardRatePerSecond } = useScaffoldContractRead({
+    contractName: "Staker",
+    functionName: "rewardRatePerSecond",
+    watch: true,
+  });
+  const { data: claimPeriodLeft } = useScaffoldContractRead({
+    contractName: "Staker",
+    functionName: "claimPeriodLeft",
+    watch: true,
+  });
+  const { data: withdrawalTimeLeft } = useScaffoldContractRead({
+    contractName: "Staker",
+    functionName: "withdrawalTimeLeft",
+    watch: true,
+  });
 
   // Contract Write Actions
   const { writeAsync: stakeETH } = useScaffoldContractWrite({
     contractName: "Staker",
     functionName: "stake",
-    value: "0.5",
+    //   value: "0.5",
+    value: customEthValue,
   });
   const { writeAsync: execute } = useScaffoldContractWrite({
     contractName: "Staker",
@@ -57,6 +76,11 @@ export const StakeContractInteraction = ({ address }: { address?: string }) => {
     contractName: "Staker",
     functionName: "withdraw",
   });
+
+  const handleButtonClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault(); // Prevent the default behavior of the button
+    stakeETH(customEthValue);
+  };
 
   return (
     <div className="flex items-center flex-col flex-grow w-full px-4 gap-12">
@@ -76,9 +100,8 @@ export const StakeContractInteraction = ({ address }: { address?: string }) => {
         </div>
       )}
       <div
-        className={`flex flex-col items-center space-y-8 bg-base-100 shadow-lg shadow-secondary border-8 border-secondary rounded-xl p-6 w-full max-w-lg ${
-          !isStakingCompleted ? "mt-24" : ""
-        }`}
+        className={`flex flex-col items-center space-y-8 bg-base-100 shadow-lg shadow-secondary border-8 border-secondary rounded-xl p-6 w-full max-w-lg ${!isStakingCompleted ? "mt-24" : ""
+          }`}
       >
         <div className="flex flex-col w-full items-center">
           <p className="block text-2xl mt-0 mb-2 font-semibold">Staker Contract</p>
@@ -86,8 +109,8 @@ export const StakeContractInteraction = ({ address }: { address?: string }) => {
         </div>
         <div className="flex items-start justify-around w-full">
           <div className="flex flex-col items-center justify-center w-1/2">
-            <p className="block text-xl mt-0 mb-1 font-semibold">Time Left</p>
-            <p className="m-0 p-0">{timeLeft ? `${humanizeDuration(Number(timeLeft) * 1000)}` : 0}</p>
+            <p className="block text-xl mt-0 mb-1 font-semibold">Claim Period Left</p>
+            <p className="m-0 p-0">{claimPeriodLeft ? `${humanizeDuration(Number(claimPeriodLeft) * 1000)}` : 0}</p>
           </div>
           <div className="flex flex-col items-center w-1/2">
             <p className="block text-xl mt-0 mb-1 font-semibold">You Staked</p>
@@ -96,12 +119,22 @@ export const StakeContractInteraction = ({ address }: { address?: string }) => {
             </span>
           </div>
         </div>
+        <div className="flex items-start justify-around w-full">
+          <div className="flex flex-col items-center justify-center w-1/2">
+            <p className="block text-xl mt-0 mb-1 font-semibold">Withdrawal Period Left</p>
+            <p className="m-0 p-0">{withdrawalTimeLeft ? `${humanizeDuration(Number(withdrawalTimeLeft) * 1000)}` : 0}</p>
+          </div>
+          <div className="flex flex-col items-center justify-center w-1/2">
+            <p className="block text-xl mt-0 mb-1 font-semibold">Reward Rate</p>
+            <p className="m-0 p-0">{Number(rewardRatePerSecond) / 1E18} ETH / second</p>
+          </div>
+        </div>
         <div className="flex flex-col items-center shrink-0 w-full">
-          <p className="block text-xl mt-0 mb-1 font-semibold">Total Staked</p>
+          <p className="block text-xl mt-0 mb-1 font-semibold">Total Balance in Contract</p>
           <div className="flex space-x-2">
             {<ETHToPrice value={stakerContractBalance != null ? stakerContractBalance.toString() : undefined} />}
-            <span>/</span>
-            {<ETHToPrice value={threshold ? formatEther(threshold) : undefined} />}
+            {/* <span>/</span>
+            {<ETHToPrice value={threshold ? formatEther(threshold) : undefined} />} */}
           </div>
         </div>
         <div className="flex flex-col space-y-5">
@@ -113,9 +146,17 @@ export const StakeContractInteraction = ({ address }: { address?: string }) => {
               Withdraw
             </button>
           </div>
-          <button className="btn btn-primary" onClick={() => stakeETH()}>
+          {/* <button className="btn btn-primary" onClick={() => stakeETH()}>
             🥩 Stake 0.5 ether!
-          </button>
+          </button> */}
+          <input
+            type="text"
+            placeholder="Enter amount of ETH"
+            className="input input-ghost focus:text-secondary-content h-[2.2rem] min-h-[2.2rem] px-4 border w-full font-medium placeholder:text-accent/50 text-secondary-content"
+            value={customEthValue}
+            onChange={(e) => setcustomEthValue(e.target.value)}
+          />
+          <button className="btn btn-primary" onClick={handleButtonClick}>Stake ETH</button>
         </div>
       </div>
     </div>
